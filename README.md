@@ -101,3 +101,64 @@ Recall: Important to catch most frauds.
 F1-score: Balanced measure of precision and recall.
 
 ROC-AUC Score: ~0.98
+# install required libraries if not already installed
+# !pip install kagglehub imbalanced-learn scikit-learn pandas matplotlib seaborn
+
+import kagglehub
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score
+from imblearn.over_sampling import SMOTE
+from sklearn.preprocessing import StandardScaler
+
+# Step 1: Download dataset from Kaggle
+print("[INFO] Downloading dataset...")
+path = kagglehub.dataset_download("mlg-ulb/creditcardfraud")
+csv_path = f"{path}/creditcard.csv"
+print("Downloaded to:", csv_path)
+
+# Step 2: Load the dataset
+print("[INFO] Loading dataset...")
+df = pd.read_csv(csv_path)
+print(df.head())
+
+# Step 3: Basic EDA (optional)
+print("\nClass Distribution:\n", df['Class'].value_counts())
+
+# Step 4: Preprocessing
+X = df.drop(['Class', 'Time'], axis=1)
+y = df['Class']
+
+# Normalize 'Amount'
+scaler = StandardScaler()
+X['Amount'] = scaler.fit_transform(X['Amount'].values.reshape(-1, 1))
+
+# Step 5: Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)
+
+# Step 6: Handle class imbalance
+print("[INFO] Applying SMOTE...")
+sm = SMOTE(random_state=42)
+X_resampled, y_resampled = sm.fit_resample(X_train, y_train)
+
+# Step 7: Train model
+print("[INFO] Training Random Forest model...")
+model = RandomForestClassifier(n_estimators=100, random_state=42)
+model.fit(X_resampled, y_resampled)
+
+# Step 8: Evaluate model
+y_pred = model.predict(X_test)
+print("\n[RESULT] Confusion Matrix:\n", confusion_matrix(y_test, y_pred))
+print("\n[RESULT] Classification Report:\n", classification_report(y_test, y_pred))
+print("[RESULT] ROC AUC Score:", roc_auc_score(y_test, y_pred))
+
+# Step 9: Feature Importance (optional)
+importances = model.feature_importances_
+features = X.columns
+sns.barplot(x=importances, y=features)
+plt.title("Feature Importance")
+plt.show()
